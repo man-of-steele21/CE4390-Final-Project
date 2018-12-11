@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for fn in `ps | grep -e host -e bridge -e router | cut -c 1-5`; do
+    kill $fn
+done

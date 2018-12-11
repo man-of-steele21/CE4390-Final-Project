@@ -14,7 +14,7 @@ struct ARPEntry
 };
 
 int myid, numports, numneighbors;
-int * neighbors;
+int* neighbors, * ethports;
 
 string* outfilename, *infilename;
 
@@ -30,14 +30,40 @@ void EthernetPeriodicTasks()
 
   string MyMessage;
 
+  int src, dest;
+
   for (int i = 0; i < numports; i++)
     {
       while (!inputfile[i].eof())
       {
 	if (getline (inputfile[i], MyMessage))
-	  cout << MyMessage << endl;
-      }
-    }
+	  {
+	    inputstream.str(MyMessage);
+	    inputstream >> dest >> src;
+	    ethports[i] = src;
+	    if (dest == 99)
+	      for (int j = 0; j < numports; j++)
+		if (i != j)
+		  {
+		    outputfile[j] << MyMessage << endl;
+		    outputfile[j].flush();
+		  }
+		else;
+
+	    else
+		for (int k = 0; k < numports; k++)
+		  {
+		    if (ethports[k] == dest)
+		      {
+			outputfile[k] << MyMessage << endl;
+			outputfile[k].flush();
+		      }
+		    else;
+		  }//for (k)
+		  
+	  }// if (getline)
+      }// while
+    }// for (i)
 }
   
 int main(int argc, char** argv) 
@@ -53,6 +79,7 @@ int main(int argc, char** argv)
     numneighbors = argc - 3;
 
     neighbors = new int[numneighbors];
+    
 
     for (int i = 0; i < numneighbors; i++)
 	neighbors[i] = stoi(argv[i + 3]);
@@ -77,6 +104,10 @@ int main(int argc, char** argv)
     mybport = new int[numports];
     myethadd = new int[numports]; */
 
+    ethports = new int[numports];
+    for (int h = 0; h < numports; h++)
+      ethports[h] = 0;
+
     outfilename = new string[numports];
     infilename = new string[numports];
     outputfile = new ofstream[numports];
@@ -98,16 +129,16 @@ int main(int argc, char** argv)
 	outputfile[i].open(outfilename[i]);
 	inputfile[i].open(infilename[i]);
 
-	if (outputfile[i].is_open())
+	/*	if (outputfile[i].is_open())
 	  cout << "Output file sucessfully opened" << endl;
 	else
-	  cout << "Output file NOT sucessfully opened" << endl;
+	cout << "Output file NOT sucessfully opened" << endl;*/
 
 	if (inputfile[i].is_open())
-	  cout << "Input file sucessfully opened" << endl;
+	  ;// cout << "Input file sucessfully opened" << endl;
 	else
 	  {
-	    cout << "Input file NOT sucessfully opened initially, creating file" << endl;
+	    // cout << "Input file NOT sucessfully opened initially, creating file" << endl;
 	    ofstream tempfile;
 	    tempfile.open(infilename[i]);
 	    tempfile.close();
@@ -119,6 +150,7 @@ int main(int argc, char** argv)
 
     while (true)
       {
+	EthernetPeriodicTasks();
 	  for (int i = 0; i < numports; i++)
 	    inputfile[i].clear();
 	  this_thread::sleep_for(chrono::seconds(1));

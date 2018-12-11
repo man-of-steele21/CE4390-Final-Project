@@ -29,7 +29,7 @@ void EthernetReceiveFromIP(int destethernet, int networknumber, string ipmessage
 {
   //  cout << destethernet << " " << myethadd[networknumber] << " IP " << ipmessage;
 
-  outputfile[networknumber] << destethernet << " " << myethadd[networknumber] << " IP " << ipmessage;
+  outputfile[networknumber] << destethernet << " " << myethadd[networknumber] << " " << ipmessage;
   outputfile[networknumber].flush();
 }
   
@@ -93,16 +93,16 @@ int main(int argc, char** argv)
 	 outputfile[i].open(outfilename[i]);
 	 inputfile[i].open(infilename[i]);
 
-	 if (outputfile[i].is_open())
+	 /*	 if (outputfile[i].is_open())
 	   cout << "Output file sucessfully opened" << endl;
 	 else
-	   cout << "Output file NOT sucessfully opened" << endl;
+	 cout << "Output file NOT sucessfully opened" << endl;*/
 
 	 if (inputfile[i].is_open())
-	   cout << "Input file sucessfully opened" << endl;
+	   ;// cout << "Input file sucessfully opened" << endl;
 	 else
 	   {
-	     cout << "Input file NOT sucessfully opened initially, creating file" << endl;
+	     // cout << "Input file NOT sucessfully opened initially, creating file" << endl;
 	     ofstream tempfile;
 	     tempfile.open(infilename[i]);
 	     tempfile.close();

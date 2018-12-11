@@ -3,24 +3,98 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <sstream>
 
 #define MAX_ETHERNET_ADDRESSES 99
 
 using namespace std;
+
+int myip1, myip2, myethadd, mydrip1, mydrip2, mybridge, mybport, mydestip1, mydestip2, srcip1, srcip2;
+
+ofstream outputfile;
+ifstream inputfile;
 
 struct ARPEntry
 {
     int ip1, ip2, Ethernet;
 };
 
+void EthernetReceiveFromIP(string Message, int EthDest)
+{
+  //cout << "writing **" << Message << "** to Ethernet dest: " << EthDest << endl;
+  outputfile << EthDest << " " << myethadd << " " << Message;
+  outputfile.flush();
+}
+
+void IPReceiveFromTransport(string TransMessage)
+{
+  stringstream outputstream;
+
+  outputstream << "IP " << srcip1 << " " << srcip2 << " " << myip1 << " " << myip2 << " " << TransMessage;
+  if (srcip1 == myip1)
+     EthernetReceiveFromIP(outputstream.str(), 1);
+
+  // Start work here
+}
+
+void TransportReceiveFromIP(string TransMessage)
+{
+  string data, protocol;
+  int seqnum, chnum;
+
+  stringstream inputstream;
+  stringstream outputstream;
+
+  inputstream.str(TransMessage);
+  inputstream >> protocol;
+  if (protocol == "DA")
+    {
+      cout << "Transport Protocol " << protocol << endl;
+      inputstream >> seqnum >> chnum;
+      getline(inputstream, data);
+      cout << "Host (" << myip1 << "," << myip2 << ") received data from host (" << srcip1 << "," << srcip2 << "): " << data << endl;
+      outputstream << "AK " << seqnum << " " << chnum << endl;
+      IPReceiveFromTransport(outputstream.str());
+    }
+}
+
+void IPReceiveFromEthernet(string IPMessage)
+{
+  string TransMessage, protocol;
+  int destip1, destip2;
+
+  stringstream inputstream;
+
+  inputstream.str(IPMessage);
+  inputstream >> protocol;
+  if (protocol == "IP")
+    {
+      cout << "Protocol: " << protocol << endl;
+      inputstream >> destip1 >> destip2 >> srcip1 >> srcip2;
+      getline(inputstream, TransMessage);
+      //    cout << "Transport Message: " << TransMessage << endl;
+      if (destip1 == myip1 && destip2 == myip2)
+	TransportReceiveFromIP(TransMessage);
+    }
+}
+
 void EthernetReceiveFromBridge(ifstream &MyInputFile)
 {
-    string MyMessage;
+    string EthMessage;
+    string IPMessage;
+    int src, dest;
 
+    stringstream inputstream;
     while (!MyInputFile.eof())
       {
-	if (getline (MyInputFile, MyMessage))
-	  cout << MyMessage << endl;
+	if (getline (MyInputFile, EthMessage))
+	  {
+	    inputstream.str(EthMessage);
+	    inputstream >> dest >> src;
+	    getline(inputstream, IPMessage);
+	    //    cout << "IPMessage: " << IPMessage << endl;
+	    IPReceiveFromEthernet(IPMessage);
+	  }
       }
 }
 
@@ -29,16 +103,25 @@ void GetARP(int tIPadd1, int tIPadd2, int sIPadd1, int sIPadd2, int sEthadd)
   // Finish code
 }
 
+//  *************************************************************** Added
+void TransportPeriodicTasks()
+{
+  stringstream outputstream;
+
+  // Output "Hello" message
+
+       outputstream << "HL " << myip1 << " " << myip2 << " " << myethadd<< endl;
+      //     cout << outputstream.str();
+      EthernetReceiveFromIP(outputstream.str(), 99);
+      outputstream.str("");
+
+  this_thread::sleep_for(chrono::seconds(4));
+}
   
 int main(int argc, char** argv) 
-{ 
-    int myip1, myip2, myethadd, mydrip1, mydrip2, mybridge, mybport, mydestip1, mydestip2;
+{
     string message, outfilename, infilename;
-
     ARPEntry ARPTable[MAX_ETHERNET_ADDRESSES];
-
-    ofstream outputfile;
-    ifstream inputfile;
 
     if (argc != 11 && argc != 8)
       {
@@ -93,33 +176,35 @@ int main(int argc, char** argv)
     outputfile.open(outfilename);
     inputfile.open(infilename);
 
-    if (outputfile.is_open())
+    /* if (outputfile.is_open())
       cout << "Output file sucessfully opened" << endl;
     else
-      cout << "Output file NOT sucessfully opened" << endl;
+    cout << "Output file NOT sucessfully opened" << endl;*/
 
     if (inputfile.is_open())
-      cout << "Input file sucessfully opened" << endl;
+      ;// cout << "Input file sucessfully opened" << endl;
     else
       {
-	cout << "Input file NOT sucessfully opened initially, creating file" << endl;
+	//	cout << "Input file NOT sucessfully opened initially, creating file" << endl;
 	ofstream tempfile;
 	tempfile.open(infilename);
 	tempfile.close();
 	inputfile.open(infilename);
       }
 
+
+    /*    cout << "Host: (" << myip1 << "," << myip2 << ") Output file name: " << outfilename << endl;
+	  cout << "Host: (" << myip1 << "," << myip2 << ") Input file name: " << infilename << endl; */
+
        while (true)
       {
+	  TransportPeriodicTasks();
 	  EthernetReceiveFromBridge(inputfile);
 	  inputfile.clear();
 	  // cout << "Inside while loop" << endl;
 	  this_thread::sleep_for(chrono::seconds(1));
       }
-
-    /*   cout << "Output file name: " << outfilename << endl;
-    cout << "Input file name: " << infilename << endl;
-    */
+    
   
     return 0; 
 } 
