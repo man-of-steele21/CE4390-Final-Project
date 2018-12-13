@@ -106,7 +106,7 @@ int main(int argc, char** argv)
 
     ethports = new int[numports];
     for (int h = 0; h < numports; h++)
-      ethports[h] = 0;
+      ethports[h] = -1;
 
     outfilename = new string[numports];
     infilename = new string[numports];
