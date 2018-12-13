@@ -11,7 +11,7 @@ using namespace std;
 
 void EthernetReceiveFromBridge(ifstream &);
 
-int myip1, myip2, myethadd, mydrip1, mydrip2, mybridge, mybport, mydestip1, mydestip2, srcip1, srcip2;
+int myip1, myip2, myethadd, mydrip1, mydrip2, mybridge, mybport, mydestip1, mydestip2, srcip1, srcip2, sleeptimer;
 
 int LastReceivedEthernetAddress, FoundEthernetAddress;
 
@@ -80,10 +80,24 @@ void IPReceiveFromTransport(string TransMessage)
 	EthernetReceiveFromIP(outputstream.str(), GetARP(srcip1, srcip2));
     }
 
-  //EthernetReceiveFromIP(outputstream.str(), LastReceivedEthernetAddress);
+  else // Differet network, route to default router
+    {
+      FoundEthernet = false;
+      for (int i = 0; (i < MAX_ETHERNET_ADDRESSES) && (FoundEthernet == false); i++)
+	{
+	  //	cout << "ARPTable = " << ARPTable[i].ip1 << "," << ARPTable[i].ip2 << endl;
+	  if (ARPTable[i].ip1 == mydrip1 && ARPTable[i].ip2 == mydrip2)
+	  {
+	    //	    cout << "About to send to Ethernet: " << i << endl;
+	    EthernetReceiveFromIP(outputstream.str(), i);
+	    FoundEthernet = true;
+	  }
+	}
+      if (!FoundEthernet)
+	 EthernetReceiveFromIP(outputstream.str(), GetARP(mydrip1, mydrip2));
+    }
 
-  // Start work here
-  // Send to the Ethernet address of the default router
+  //EthernetReceiveFromIP(outputstream.str(), LastReceivedEthernetAddress);
 }
 
 void TransportReceiveFromIP(string TransMessage)
@@ -205,30 +219,35 @@ void SendMessage(string message, int destip1, int destip2)
   srcip2 = destip2;
   LastReceivedEthernetAddress = 1;
 
+  //  cout << "Got to SendMessage" << endl;
+
   for (i = 0; i < (message.length()/5); i++)
     {
-      temp << "DA " << "0 0 " << message.substr((i*5), 5) << endl;
+      //   cout << "Got to SendMessage's for loop. Message: " << message << endl;
+      temp << "DA " << i%2 << " 0 " << message.substr((i*5), 5) << endl;
       acked = false;
       while (!acked)
 	{
 	  timer = 0;
+	  //	  cout << "Calling IPReceiveFromTransport. Temp: " << temp.str() << endl;
 	  IPReceiveFromTransport(temp.str());
+	  //	  cout << "After IPReceiveFromTransport" << endl;
 	  do
 	    {
 	      inputfile.close();
 	      inputfile.open(infilename);
 	      inputfile.seekg(position);
 	      EthernetReceiveFromBridge(inputfile);
-	      this_thread::sleep_for(chrono::seconds(1)); // UPDATE TO 30
+	      this_thread::sleep_for(chrono::seconds(1));
 	      timer++;
-	    } while (!acked && (timer < 30));
+	    } while ((!acked) && (timer < 40));
 	}
       temp.str("");
     }
 
   if (message.length() % 5 != 0)
     {
-      temp << "DA " << "0 0 " << message.substr((i*5), (message.length()-(i*5))) << endl;
+      temp << "DA " << i%2 << " 0 " << message.substr((i*5), (message.length()-(i*5))) << endl;
       acked = false;
       while (!acked)
 	{
@@ -239,9 +258,9 @@ void SendMessage(string message, int destip1, int destip2)
 	      inputfile.open(infilename);
 	      inputfile.seekg(position);
 	      EthernetReceiveFromBridge(inputfile);
-	      this_thread::sleep_for(chrono::seconds(1)); // UPDATE TO 30
+	      this_thread::sleep_for(chrono::seconds(1));
 	      timer++;
-	    } while (!acked && (timer < 30));
+	    } while ((!acked) && (timer < 40));
 	}
       temp.str("");
     }
@@ -253,12 +272,16 @@ void TransportPeriodicTasks()
 
   // Output "Hello" message
 
+  if (sleeptimer > 4)
+    {
        outputstream << "HL " << myip1 << " " << myip2 << " " << myethadd<< endl;
       //     cout << outputstream.str();
       EthernetReceiveFromIP(outputstream.str(), 99);
       outputstream.str("");
-
-  this_thread::sleep_for(chrono::seconds(4));
+      sleeptimer = 0;
+    }
+  sleeptimer++;
+  //  this_thread::sleep_for(chrono::seconds(2));
 }
   
 int main(int argc, char** argv) 
@@ -272,11 +295,6 @@ int main(int argc, char** argv)
 	ARPTable[i].ip1 = -1;
 	ARPTable[i].ip2 = -1;
       }
-
-    //   ARPTable[54].ip1 = 1;
-    //   ARPTable[54].ip2 = 3;
-    ARPTable[23].ip1 = 1;
-    ARPTable[23].ip2 = 1;
 
     if (argc != 11 && argc != 8)
       {
@@ -367,7 +385,7 @@ int main(int argc, char** argv)
 
 
     //     cout << "Host: (" << myip1 << "," << myip2 << ") (After Send Message check)" << endl;
-
+    sleeptimer = 0;
        while (true)
       {
 	  inputfile.open(infilename);

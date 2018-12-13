@@ -16,12 +16,12 @@ struct ARPEntry
 int myid, numports, numneighbors;
 int* neighbors, * ethports;
 
-string* outfilename, *infilename;
+string* outfilename, * infilename, * boutfilename, * binfilename;
 
 ARPEntry ARPTable[MAX_ETHERNET_ADDRESSES];
 
-ofstream* outputfile;
-ifstream* inputfile;
+ofstream* outputfile, * boutputfile;
+ifstream* inputfile, * binputfile;
 
 void EthernetPeriodicTasks()
 {
@@ -31,6 +31,8 @@ void EthernetPeriodicTasks()
   string MyMessage;
 
   int src, dest;
+
+  bool ethmatch;
 
   for (int i = 0; i < numports; i++)
     {
@@ -42,24 +44,118 @@ void EthernetPeriodicTasks()
 	    inputstream >> dest >> src;
 	    ethports[i] = src;
 	    if (dest == 99)
-	      for (int j = 0; j < numports; j++)
-		if (i != j)
+	      {
+		for (int j = 0; j < numports; j++)
 		  {
-		    outputfile[j] << MyMessage << endl;
-		    outputfile[j].flush();
+		    if (i != j)
+		      {
+			outputfile[j] << MyMessage << endl;
+			outputfile[j].flush();
+		      }
+		    else;
 		  }
-		else;
+
+		for (int l = 0; l < numneighbors; l++)
+		  {
+		    boutputfile[l] << MyMessage << endl;
+		    boutputfile[l].flush();
+		  }
+	      }
 
 	    else
+	      {
+		ethmatch = false;
 		for (int k = 0; k < numports; k++)
 		  {
 		    if (ethports[k] == dest)
 		      {
+			ethmatch = true;
 			outputfile[k] << MyMessage << endl;
 			outputfile[k].flush();
 		      }
-		    else;
+		    else
+		      {
+			
+		      }
 		  }//for (k)
+		if (!ethmatch)
+		  {
+		    //  cout << "No Ethernet match" << endl;
+		    for (int l = 0; l < numneighbors; l++)
+		      {
+			boutputfile[l] << MyMessage << endl;
+			boutputfile[l].flush();
+		      }
+		  }
+	      }
+		  
+	  }// if (getline)
+      }// while
+    }// for (i)
+
+  for (int i = 0; i < numneighbors; i++)
+    {
+      while (!binputfile[i].eof())
+      {
+	if (getline (binputfile[i], MyMessage))
+	  {
+	    inputstream.str(MyMessage);
+	    //   cout << "Bridge: " << myid << " " << MyMessage << endl;
+	    inputstream >> dest >> src;
+	    //	    ethports[i] = src;
+	    if (dest == 99)
+	      {
+		for (int j = 0; j < numports; j++)
+		  {
+		    if (i != j)
+		      {
+			outputfile[j] << MyMessage << endl;
+			outputfile[j].flush();
+		      }
+		    else;
+		  }
+
+		for (int l = 0; l < numneighbors; l++)
+		  {
+		    if (i != l)
+		      {
+			boutputfile[l] << MyMessage << endl;
+			boutputfile[l].flush();
+		      }
+		    else;
+		  }
+	      }
+
+	    else
+	      {
+		ethmatch = false;
+		for (int k = 0; k < numports; k++)
+		  {
+		    if (ethports[k] == dest)
+		      {
+			ethmatch = true;
+			outputfile[k] << MyMessage << endl;
+			outputfile[k].flush();
+		      }
+		    else
+		      {
+			
+		      }
+		  }//for (k)
+		if (!ethmatch)
+		  {
+		    //  cout << "No Ethernet match" << endl;
+		    for (int l = 0; l < numneighbors; l++)
+		      {
+			if (i != l)
+			  {
+			    boutputfile[l] << MyMessage << endl;
+			    boutputfile[l].flush();
+			  }
+			else;
+		      }
+		  }
+	      }
 		  
 	  }// if (getline)
       }// while
@@ -112,6 +208,11 @@ int main(int argc, char** argv)
     infilename = new string[numports];
     outputfile = new ofstream[numports];
     inputfile = new ifstream[numports];
+    
+    boutfilename = new string[numneighbors];
+    binfilename = new string[numneighbors];
+    boutputfile = new ofstream[numneighbors];
+    binputfile = new ifstream[numneighbors];
 
     for (int i = 0; i < numports; i++)
       {
@@ -146,13 +247,44 @@ int main(int argc, char** argv)
 	  }
       }
 
+    for (int i = 0; i < numneighbors; i++)
+      {
+	boutfilename[i] = "B";
+	boutfilename[i].append(to_string(myid));
+	boutfilename[i].append("B");
+	boutfilename[i].append(to_string(neighbors[i]));
+	boutfilename[i].append(".txt");
+	binfilename[i] = "B";
+	binfilename[i].append(to_string(neighbors[i]));
+	binfilename[i].append("B");
+	binfilename[i].append(to_string(myid));
+	binfilename[i].append(".txt");
+
+	boutputfile[i].open(boutfilename[i]);
+	binputfile[i].open(binfilename[i]);
+
+	if (binputfile[i].is_open())
+	  ;// cout << "Input file sucessfully opened" << endl;
+	else
+	  {
+	    // cout << "Input file NOT sucessfully opened initially, creating file" << endl;
+	    ofstream tempfile;
+	    tempfile.open(binfilename[i]);
+	    tempfile.close();
+	    binputfile[i].open(binfilename[i]);
+	  }
+      }
+
     //************************ Processing Data **************************
 
+    this_thread::sleep_for(chrono::seconds(1));
     while (true)
       {
 	EthernetPeriodicTasks();
 	  for (int i = 0; i < numports; i++)
 	    inputfile[i].clear();
+	  for (int i = 0; i < numneighbors; i++)
+	    binputfile[i].clear();
 	  this_thread::sleep_for(chrono::seconds(1));
       }
   
